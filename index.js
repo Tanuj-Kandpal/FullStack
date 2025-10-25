@@ -1,11 +1,12 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
 
 const { UserModel, TodoModel } = require("./db");
 
 mongoose.connect(
-  "mongodb+srv://admin:admin@cluster0.zrsjifi.mongodb.net/todo-app-database"
+  ""
 );
 
 const app = express();
@@ -20,9 +21,11 @@ app.post("/signup", async (req, res) => {
   const password = req.body.password;
   const name = req.body.name;
 
+  const encodedPassword = await bcrypt.hash(password, 2);
+
   await UserModel.create({
     email: email,
-    password: password,
+    password: encodedPassword,
     name: name,
   });
 
@@ -37,10 +40,18 @@ app.post("/signin", async (req, res) => {
 
   const user = await UserModel.findOne({
     email: email,
-    password: password,
   });
 
-  if (user) {
+  if (!user) {
+    res.status(403).json({
+      message: "user does not exist in the db",
+    });
+    return;
+  }
+
+  const passwordMatch = await bcrypt.compare(password, user.password);
+
+  if (passwordMatch) {
     const token = jwt.sign(
       {
         id: user._id.toString(),
