@@ -2,6 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const mongoose = require("mongoose");
+const { z } = require("zod");
 
 const { UserModel, TodoModel } = require("./db");
 
@@ -17,19 +18,42 @@ const JWT_SECRET = "tanuj12979384";
 
 //route handler
 app.post("/signup", async (req, res) => {
+  //check that password has 1 uppercase , 1 lower case  and a special character
+  const reqBody = z.object({
+    email: z.string().min(3).max(100),
+    password: z.string().min(5),
+    name: z.string(),
+  });
+
+  //There is a difference between parse and safeparse
+
+  const { success } = z.safeParse(reqBody, req.body);
+
+  if (!success) {
+    res.json({
+      message: "Incorrect email and password format",
+    });
+    return;
+  }
+
   const email = req.body.email;
   const password = req.body.password;
   const name = req.body.name;
 
-  const encodedPassword = await bcrypt.hash(password, 2);
+  const hashedpassword = await bcrypt.hash(password, 2);
 
+  try {
   await UserModel.create({
     email: email,
-    password: encodedPassword,
+      password: hashedpassword,
     name: name,
   });
-
-  res.status(200).json({
+  } catch (error) {
+    return res.json({
+      message: "Duplicate Keys exists",
+    });
+  }
+  return res.status(200).json({
     msg: "Signed up successfully",
   });
 });
